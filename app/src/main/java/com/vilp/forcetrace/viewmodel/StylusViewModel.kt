@@ -3,11 +3,15 @@ package com.vilp.forcetrace.viewmodel
 import android.os.Build
 import android.view.MotionEvent
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.vilp.forcetrace.model.DataPoint
 import com.vilp.forcetrace.model.ForcePoint
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import kotlin.math.pow
 
 class StylusViewModel : ViewModel() {
@@ -19,6 +23,16 @@ class StylusViewModel : ViewModel() {
 
     private val removeBrush = DataPoint(-100f, -100f)
     private var t0 = 0L
+
+    private val _isLoading = MutableStateFlow(true)
+    val isLoading = _isLoading.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            delay(2500)
+            _isLoading.value = false
+        }
+    }
 
     private fun requestRendering(stylusState: StylusState) {
         _stylusState.update {

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <style name="Theme.ForceTrace.ForceSplash" parent="Theme.SplashScreen">
+        <item name="android:windowSplashScreenBackground">#37288A</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_launcher</item>
+        <item name="postSplashScreenTheme">@style/Theme.ForceTrace</item>
+    </style>
+</resources>
