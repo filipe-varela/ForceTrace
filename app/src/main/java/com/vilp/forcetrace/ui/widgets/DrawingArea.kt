@@ -15,6 +15,8 @@ import androidx.compose.ui.input.pointer.pointerInteropFilter
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 import com.vilp.forcetrace.viewmodel.StylusState
+import kotlin.math.PI
+import kotlin.math.cos
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
@@ -35,10 +37,19 @@ fun DrawingArea(
             drawPoints(
                 points,
                 PointMode.Points,
-                Color.White,
-                2.dp.toPx()
+                red2blue(pressure),
+                3.dp.toPx()
             )
         }
-
     }
+}
+
+fun red2blue(pressure: Float): Color {
+    val a = listOf(0.5f, 0f, 0.5f)
+    val d = listOf(0.0f, 0f, 0.5f)
+    return Color(
+        a[0] + a[0] * cos(2f * PI.toFloat() * (a[0] * pressure + d[0])),
+        a[1] + a[1] * cos(2f * PI.toFloat() * (a[1] * pressure + d[1])),
+        a[2] + a[2] * cos(2f * PI.toFloat() * (a[2] * pressure + d[2])),
+    )
 }
