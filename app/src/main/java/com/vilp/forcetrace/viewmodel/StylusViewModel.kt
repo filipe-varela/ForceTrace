@@ -9,7 +9,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 
 class StylusViewModel : ViewModel() {
-    private var dataPoints = mutableListOf<DataPoint>()
+    private var dataPoints = HistoryState(mutableListOf<DataPoint>())
+    private var tmpPoints = mutableListOf<DataPoint>()
 
     private var _stylusState = MutableStateFlow(StylusState())
     val stylusState: StateFlow<StylusState> = _stylusState
@@ -23,15 +24,17 @@ class StylusViewModel : ViewModel() {
     fun processMotionEvent(event: MotionEvent): Boolean {
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
-                dataPoints.add(DataPoint(event.x, event.y))
+                tmpPoints.add(DataPoint(event.x, event.y))
             }
 
             MotionEvent.ACTION_MOVE -> {
-                dataPoints.add(DataPoint(event.x, event.y))
+                tmpPoints.add(DataPoint(event.x, event.y))
             }
 
             MotionEvent.ACTION_UP -> {
-                dataPoints.add(DataPoint(event.x, event.y))
+                tmpPoints.add(DataPoint(event.x, event.y))
+                dataPoints.add(tmpPoints.toMutableList())
+                tmpPoints.clear()
             }
 
             MotionEvent.ACTION_CANCEL -> {
@@ -47,12 +50,25 @@ class StylusViewModel : ViewModel() {
                     pressure,
                     orientation,
                     tilt = getAxisValue(MotionEvent.AXIS_TILT),
-                    points = dataPoints.map { Offset(it.x,it.y) }
+                    points = buildPoints()
                 )
             )
         }
 
         return true
+    }
+
+    // TODO: Add operation for redo, undo, delete, clear, totalClear, export
+
+    private fun buildPoints(): List<Offset> {
+        val points = mutableListOf<Offset>()
+        dataPoints.current.forEach {
+            points.add(Offset(it.x,it.y))
+        }
+        tmpPoints.forEach {
+            points.add(Offset(it.x,it.y))
+        }
+        return points
     }
 
     private fun cancelLastStroke() {}
