@@ -13,7 +13,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInteropFilter
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.unit.dp
 import com.vilp.forcetrace.viewmodel.StylusState
 
 @Composable
@@ -21,6 +20,7 @@ import com.vilp.forcetrace.viewmodel.StylusState
 fun ErasingCanvas(
     modifier: Modifier = Modifier,
     stylusState: StylusState,
+    erasingRadius: Float,
     onEvent: (MotionEvent) -> Boolean
 ) {
     Canvas(
@@ -36,7 +36,7 @@ fun ErasingCanvas(
         with(stylusState.lastPosition) {
             drawCircle(
                 Color.White,
-                12.dp.toPx(),
+                erasingRadius,
                 Offset(x, y)
             )
         }

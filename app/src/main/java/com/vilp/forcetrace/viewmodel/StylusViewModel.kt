@@ -1,7 +1,6 @@
 package com.vilp.forcetrace.viewmodel
 
 import android.os.Build
-import android.util.Log
 import android.view.MotionEvent
 import androidx.compose.ui.geometry.Offset
 import androidx.lifecycle.ViewModel
@@ -9,6 +8,7 @@ import com.vilp.forcetrace.model.DataPoint
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
+import kotlin.math.pow
 
 class StylusViewModel : ViewModel() {
     private var dataPoints = HistoryState(mutableListOf<DataPoint>())
@@ -48,18 +48,34 @@ class StylusViewModel : ViewModel() {
         return true
     }
 
-    fun processErasingEvent(event: MotionEvent): Boolean {
+    fun processErasingEvent(event: MotionEvent, radius: Float): Boolean {
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
-                requestRendering(stylusState.value.copy(lastPosition = DataPoint(event.x, event.y)))
+                if (dataPoints.current.isNotEmpty()) {
+                    val cleanedPoints = dataPoints.current.filter {
+                        computeDistance(it, event) > radius
+                    }.toMutableList()
+                    if (cleanedPoints.size != dataPoints.current.size) dataPoints.add(cleanedPoints)
+                    requestRendering(
+                        stylusState.value.copy(
+                            lastPosition = DataPoint(event.x, event.y),
+                            points = buildPoints()
+                        )
+                    )
+                } else {
+                    requestRendering(
+                        stylusState.value.copy(
+                            lastPosition = DataPoint(event.x, event.y)
+                        )
+                    )
+                }
             }
 
             MotionEvent.ACTION_CANCEL -> {
-                requestRendering(stylusState.value.copy(lastPosition = DataPoint(event.x, event.y)))
+                requestRendering(stylusState.value.copy(lastPosition = removeBrush))
             }
 
             MotionEvent.ACTION_POINTER_UP, MotionEvent.ACTION_UP -> {
-                Log.d("forcetrace.test", "processErasingEvent: up at (${event.x},${event.y})")
                 requestRendering(stylusState.value.copy(lastPosition = removeBrush))
             }
 
@@ -68,6 +84,11 @@ class StylusViewModel : ViewModel() {
 
         return true
     }
+
+    private fun computeDistance(
+        it: DataPoint,
+        event: MotionEvent
+    ) = ((it.x - event.x).pow(2f) + (it.y - event.y).pow(2f)).pow(.5f)
 
     private fun performActionUp(event: MotionEvent) {
         val canceled =

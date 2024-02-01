@@ -13,6 +13,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -53,9 +55,14 @@ class MainActivity : ComponentActivity() {
                             viewModel.processMotionEvent(it)
                         else false
                     }
-                    if (stylusState.erasingMode) ErasingCanvas(stylusState = stylusState) {
+                    val erasingRadius = with(LocalDensity.current) { 12.dp.toPx() }
+                    if (stylusState.erasingMode) ErasingCanvas(
+                        stylusState = stylusState,
+                        erasingRadius = erasingRadius
+                    ) {
                         viewModel.processErasingEvent(
-                            it
+                            it,
+                            erasingRadius
                         )
                     }
                     BottomBar(horizontalAlignment = Alignment.BottomCenter) {
