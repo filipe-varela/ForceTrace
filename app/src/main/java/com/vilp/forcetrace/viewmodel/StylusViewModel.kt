@@ -1,5 +1,7 @@
 package com.vilp.forcetrace.viewmodel
 
+import android.os.Build
+import android.util.Log
 import android.view.MotionEvent
 import androidx.compose.ui.geometry.Offset
 import androidx.lifecycle.ViewModel
@@ -15,6 +17,8 @@ class StylusViewModel : ViewModel() {
     private var _stylusState = MutableStateFlow(StylusState())
     val stylusState: StateFlow<StylusState> = _stylusState
 
+    private val removeBrush = DataPoint(-100f, -100f)
+
     private fun requestRendering(stylusState: StylusState) {
         _stylusState.update {
             return@update stylusState
@@ -23,24 +27,10 @@ class StylusViewModel : ViewModel() {
 
     fun processMotionEvent(event: MotionEvent): Boolean {
         when (event.actionMasked) {
-            MotionEvent.ACTION_DOWN -> {
-                tmpPoints.add(DataPoint(event.x, event.y))
-            }
-
-            MotionEvent.ACTION_MOVE -> {
-                tmpPoints.add(DataPoint(event.x, event.y))
-            }
-
-            MotionEvent.ACTION_UP -> {
-                tmpPoints.add(DataPoint(event.x, event.y))
-                dataPoints.add(tmpPoints.toMutableList())
-                tmpPoints.clear()
-            }
-
-            MotionEvent.ACTION_CANCEL -> {
-                cancelLastStroke()
-            }
-
+            MotionEvent.ACTION_DOWN -> tmpPoints.add(DataPoint(event.x, event.y))
+            MotionEvent.ACTION_MOVE -> tmpPoints.add(DataPoint(event.x, event.y))
+            MotionEvent.ACTION_POINTER_UP, MotionEvent.ACTION_UP -> performActionUp(event)
+            MotionEvent.ACTION_CANCEL -> cancelLastStroke()
             else -> return false
         }
 
@@ -58,18 +48,88 @@ class StylusViewModel : ViewModel() {
         return true
     }
 
-    // TODO: Add operation for redo, undo, delete, clear, totalClear, export
+    fun processErasingEvent(event: MotionEvent): Boolean {
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
+                requestRendering(stylusState.value.copy(lastPosition = DataPoint(event.x, event.y)))
+            }
+
+            MotionEvent.ACTION_CANCEL -> {
+                requestRendering(stylusState.value.copy(lastPosition = DataPoint(event.x, event.y)))
+            }
+
+            MotionEvent.ACTION_POINTER_UP, MotionEvent.ACTION_UP -> {
+                Log.d("forcetrace.test", "processErasingEvent: up at (${event.x},${event.y})")
+                requestRendering(stylusState.value.copy(lastPosition = removeBrush))
+            }
+
+            else -> return false
+        }
+
+        return true
+    }
+
+    private fun performActionUp(event: MotionEvent) {
+        val canceled =
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && (event.flags and MotionEvent.FLAG_CANCELED) == MotionEvent.FLAG_CANCELED
+        if (canceled) {
+            cancelLastStroke()
+        } else {
+            tmpPoints.add(DataPoint(event.x, event.y))
+            val totalPoints = dataPoints.current.toMutableList()
+            totalPoints.addAll(tmpPoints)
+            dataPoints.add(totalPoints)
+            tmpPoints.clear()
+        }
+    }
+
+    // TODO: Add operation for delete, export
 
     private fun buildPoints(): List<Offset> {
         val points = mutableListOf<Offset>()
         dataPoints.current.forEach {
-            points.add(Offset(it.x,it.y))
+            points.add(Offset(it.x, it.y))
         }
         tmpPoints.forEach {
-            points.add(Offset(it.x,it.y))
+            points.add(Offset(it.x, it.y))
         }
         return points
     }
 
-    private fun cancelLastStroke() {}
+    fun undoPoints() {
+        if (dataPoints.canUndo()) {
+            dataPoints.undo()
+            updatePoints()
+        }
+    }
+
+    fun redoPoints() {
+        if (dataPoints.canRedo()) {
+            dataPoints.redo()
+            updatePoints()
+        }
+    }
+
+    fun clearPoints() {
+        if (dataPoints.current.isNotEmpty()) {
+            dataPoints.add(mutableListOf())
+            updatePoints()
+        }
+    }
+
+    private fun updatePoints() {
+        requestRendering(
+            stylusState.value.copy(
+                points = buildPoints()
+            )
+        )
+    }
+
+    private fun cancelLastStroke() {
+        tmpPoints.clear()
+    }
+
+    fun switchErasingModes() {
+        requestRendering(stylusState.value.copy(erasingMode = !stylusState.value.erasingMode))
+    }
 }
