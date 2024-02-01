@@ -1,5 +1,6 @@
 package com.vilp.forcetrace
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -13,6 +14,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
@@ -78,8 +80,24 @@ class MainActivity : ComponentActivity() {
                         OptionsButton(id = R.drawable.baseline_redo_24) {
                             viewModel.redoPoints()
                         }
+                        val context = LocalContext.current
                         OptionsButton(id = R.drawable.baseline_download_24) {
-                            println("Export")
+                            if (stylusState.points.isNotEmpty()) {
+                                val pointsAsCSV: String = "pos_x,pos_y,force\n" + stylusState.points
+                                    .joinToString("\n") {
+                                        "${it.x},${it.y},${it.f}"
+                                    }
+                                val exportData = Intent().apply {
+                                    action = Intent.ACTION_SEND
+                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                    putExtra(Intent.EXTRA_TITLE, "New trajectory")
+                                    putExtra(Intent.EXTRA_TEXT, pointsAsCSV)
+                                    type = "text/csv"
+                                }
+                                context.startActivity(
+                                    Intent.createChooser(exportData, "Sharing trajectory")
+                                )
+                            }
                         }
                     }
                 }
