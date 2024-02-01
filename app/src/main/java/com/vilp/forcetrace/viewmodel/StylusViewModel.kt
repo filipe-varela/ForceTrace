@@ -2,17 +2,17 @@ package com.vilp.forcetrace.viewmodel
 
 import android.os.Build
 import android.view.MotionEvent
-import androidx.compose.ui.geometry.Offset
 import androidx.lifecycle.ViewModel
 import com.vilp.forcetrace.model.DataPoint
+import com.vilp.forcetrace.model.ForcePoint
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlin.math.pow
 
 class StylusViewModel : ViewModel() {
-    private var dataPoints = HistoryState(mutableListOf<DataPoint>())
-    private var tmpPoints = mutableListOf<DataPoint>()
+    private var dataPoints = HistoryState(mutableListOf<ForcePoint>())
+    private var tmpPoints = mutableListOf<ForcePoint>()
 
     private var _stylusState = MutableStateFlow(StylusState())
     val stylusState: StateFlow<StylusState> = _stylusState
@@ -27,23 +27,18 @@ class StylusViewModel : ViewModel() {
 
     fun processMotionEvent(event: MotionEvent): Boolean {
         when (event.actionMasked) {
-            MotionEvent.ACTION_DOWN -> tmpPoints.add(DataPoint(event.x, event.y))
-            MotionEvent.ACTION_MOVE -> tmpPoints.add(DataPoint(event.x, event.y))
+            MotionEvent.ACTION_DOWN -> tmpPoints.add(ForcePoint(event.x, event.y, event.pressure))
+            MotionEvent.ACTION_MOVE -> tmpPoints.add(ForcePoint(event.x, event.y, event.pressure))
             MotionEvent.ACTION_POINTER_UP, MotionEvent.ACTION_UP -> performActionUp(event)
             MotionEvent.ACTION_CANCEL -> cancelLastStroke()
             else -> return false
         }
 
-        with(event) {
-            requestRendering(
-                StylusState(
-                    pressure,
-                    orientation,
-                    tilt = getAxisValue(MotionEvent.AXIS_TILT),
-                    points = buildPoints()
-                )
+        requestRendering(
+            StylusState(
+                points = buildPoints()
             )
-        }
+        )
 
         return true
     }
@@ -86,7 +81,7 @@ class StylusViewModel : ViewModel() {
     }
 
     private fun computeDistance(
-        it: DataPoint,
+        it: ForcePoint,
         event: MotionEvent
     ) = ((it.x - event.x).pow(2f) + (it.y - event.y).pow(2f)).pow(.5f)
 
@@ -96,7 +91,7 @@ class StylusViewModel : ViewModel() {
         if (canceled) {
             cancelLastStroke()
         } else {
-            tmpPoints.add(DataPoint(event.x, event.y))
+            tmpPoints.add(ForcePoint(event.x, event.y, event.pressure))
             val totalPoints = dataPoints.current.toMutableList()
             totalPoints.addAll(tmpPoints)
             dataPoints.add(totalPoints)
@@ -104,15 +99,15 @@ class StylusViewModel : ViewModel() {
         }
     }
 
-    // TODO: Add operation for delete, export
+    // TODO: Add operation for export
 
-    private fun buildPoints(): List<Offset> {
-        val points = mutableListOf<Offset>()
+    private fun buildPoints(): List<ForcePoint> {
+        val points = mutableListOf<ForcePoint>()
         dataPoints.current.forEach {
-            points.add(Offset(it.x, it.y))
+            points.add(ForcePoint(it.x, it.y, it.f))
         }
         tmpPoints.forEach {
-            points.add(Offset(it.x, it.y))
+            points.add(ForcePoint(it.x, it.y, it.f))
         }
         return points
     }

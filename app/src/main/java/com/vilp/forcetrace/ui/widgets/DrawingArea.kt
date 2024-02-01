@@ -9,8 +9,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.PointMode
 import androidx.compose.ui.input.pointer.pointerInteropFilter
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
@@ -33,13 +33,13 @@ fun DrawingArea(
         )
         .fillMaxSize()
         .pointerInteropFilter { onEvent(it) }) {
-        with(stylusState) {
-            drawPoints(
-                points,
-                PointMode.Points,
-                red2blue(pressure),
-                3.dp.toPx()
+        for (p in stylusState.points) {
+            drawCircle(
+                red2blue(p.f),
+                center = Offset(p.x, p.y),
+                radius = 3.dp.toPx()
             )
+
         }
     }
 }
