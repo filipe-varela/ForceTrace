@@ -1,35 +1,25 @@
 package com.vilp.forcetrace
 
-import android.content.res.Configuration
 import android.os.Bundle
-import android.view.MotionEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInteropFilter
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.vilp.forcetrace.ui.theme.ForceTraceTheme
 import com.vilp.forcetrace.ui.widgets.BottomBar
 import com.vilp.forcetrace.ui.widgets.DrawingArea
+import com.vilp.forcetrace.ui.widgets.ErasingCanvas
 import com.vilp.forcetrace.ui.widgets.OptionsButton
 import com.vilp.forcetrace.ui.widgets.TrajectoriesCanvas
 import com.vilp.forcetrace.viewmodel.StylusState
@@ -91,29 +81,4 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@Composable
-@OptIn(ExperimentalComposeUiApi::class)
-fun ErasingCanvas(
-    modifier: Modifier = Modifier,
-    stylusState: StylusState,
-    onEvent: (MotionEvent) -> Boolean
-) {
-    Canvas(
-        modifier = modifier
-            .clipToBounds()
-            .aspectRatio(
-                1f,
-                LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
-            )
-            .fillMaxSize()
-            .pointerInteropFilter { onEvent(it) }
-    ) {
-        with(stylusState.lastPosition) {
-            drawCircle(
-                Color.White,
-                12.dp.toPx(),
-                Offset(x, y)
-            )
-        }
-    }
-}
+
