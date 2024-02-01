@@ -18,6 +18,7 @@ class StylusViewModel : ViewModel() {
     val stylusState: StateFlow<StylusState> = _stylusState
 
     private val removeBrush = DataPoint(-100f, -100f)
+    private var t0 = 0L
 
     private fun requestRendering(stylusState: StylusState) {
         _stylusState.update {
@@ -27,8 +28,29 @@ class StylusViewModel : ViewModel() {
 
     fun processMotionEvent(event: MotionEvent): Boolean {
         when (event.actionMasked) {
-            MotionEvent.ACTION_DOWN -> tmpPoints.add(ForcePoint(event.x, event.y, event.pressure))
-            MotionEvent.ACTION_MOVE -> tmpPoints.add(ForcePoint(event.x, event.y, event.pressure))
+            MotionEvent.ACTION_DOWN -> {
+                t0 = System.currentTimeMillis()
+                tmpPoints.add(
+                    ForcePoint(
+                        event.x,
+                        event.y,
+                        event.pressure,
+                        0L
+                    )
+                )
+            }
+
+            MotionEvent.ACTION_MOVE -> {
+                tmpPoints.add(
+                    ForcePoint(
+                        event.x,
+                        event.y,
+                        event.pressure,
+                        System.currentTimeMillis() - t0
+                    )
+                )
+            }
+
             MotionEvent.ACTION_POINTER_UP, MotionEvent.ACTION_UP -> performActionUp(event)
             MotionEvent.ACTION_CANCEL -> cancelLastStroke()
             else -> return false
@@ -91,7 +113,14 @@ class StylusViewModel : ViewModel() {
         if (canceled) {
             cancelLastStroke()
         } else {
-            tmpPoints.add(ForcePoint(event.x, event.y, event.pressure))
+            tmpPoints.add(
+                ForcePoint(
+                    event.x,
+                    event.y,
+                    event.pressure,
+                    System.currentTimeMillis() - t0
+                )
+            )
             val totalPoints = dataPoints.current.toMutableList()
             totalPoints.addAll(tmpPoints)
             dataPoints.add(totalPoints)
@@ -99,16 +128,10 @@ class StylusViewModel : ViewModel() {
         }
     }
 
-    // TODO: Add operation for export
-
     private fun buildPoints(): List<ForcePoint> {
         val points = mutableListOf<ForcePoint>()
-        dataPoints.current.forEach {
-            points.add(ForcePoint(it.x, it.y, it.f))
-        }
-        tmpPoints.forEach {
-            points.add(ForcePoint(it.x, it.y, it.f))
-        }
+        points.addAll(dataPoints.current.toList())
+        if (tmpPoints.isNotEmpty()) tmpPoints.forEach { points.add(it) }
         return points
     }
 
