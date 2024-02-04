@@ -76,7 +76,10 @@ class MainActivity : ComponentActivity() {
                         val erasingRadius = with(LocalDensity.current) { 12.dp.toPx() }
                         if (stylusState.erasingMode) ErasingCanvas(
                             stylusState = stylusState,
-                            erasingRadius = erasingRadius
+                            erasingRadius = erasingRadius,
+                            modifier = Modifier.align(
+                                Alignment.Center
+                            )
                         ) {
                             viewModel.processErasingEvent(
                                 it,
