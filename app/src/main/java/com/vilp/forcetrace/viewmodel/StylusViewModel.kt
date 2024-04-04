@@ -24,7 +24,7 @@ class StylusViewModel : ViewModel() {
     private val removeBrush = DataPoint(-100f, -100f)
     private var t0 = 0L
 
-//    private val damping = .9f
+//    private val damping = 1000
 
     private val _isLoading = MutableStateFlow(true)
     val isLoading = _isLoading.asStateFlow()

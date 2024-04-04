@@ -146,10 +146,6 @@ class MainActivity : ComponentActivity() {
                         val colorBarWidth: Dp = with(LocalDensity.current) {
                             (max(maxHeight, maxWidth).toPx() - totalSize) / 4f
                         }.toInt().dp
-                        val mappingForce: (Float) -> Dp = { f ->
-                            // range the force values between [0, .5]
-                            (totalSize * (f / 2f)).toInt().dp
-                        }
                         BoxWithConstraints(
                             modifier = Modifier
                                 .fillMaxHeight()
@@ -159,6 +155,10 @@ class MainActivity : ComponentActivity() {
                                 .clip(RoundedCornerShape(24.dp))
                                 .background(Color.Gray)
                         ) {
+                            val mappingForce: (Float) -> Dp = { f ->
+                                // range the force values between [0, .5]
+                                maxHeight * f
+                            }
                             if (stylusState.isPressing) {
                                 BoxWithConstraints(
                                     modifier = Modifier
