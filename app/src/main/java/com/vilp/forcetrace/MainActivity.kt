@@ -5,18 +5,30 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.max
 import androidx.compose.ui.unit.min
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.Lifecycle
@@ -29,6 +41,7 @@ import com.vilp.forcetrace.ui.widgets.DrawingArea
 import com.vilp.forcetrace.ui.widgets.ErasingCanvas
 import com.vilp.forcetrace.ui.widgets.OptionsButton
 import com.vilp.forcetrace.ui.widgets.TrajectoriesCanvas
+import com.vilp.forcetrace.ui.widgets.red2blue
 import com.vilp.forcetrace.viewmodel.StylusState
 import com.vilp.forcetrace.viewmodel.StylusViewModel
 import kotlinx.coroutines.flow.collect
@@ -86,7 +99,7 @@ class MainActivity : ComponentActivity() {
                                 erasingRadius
                             )
                         }
-                        val totalSize =
+                        val totalSize: Float =
                             with(LocalDensity.current) { min(maxHeight, maxWidth).toPx() }
                         BottomBar(horizontalAlignment = Alignment.BottomCenter) {
                             OptionsButton(id = R.drawable.baseline_design_services_24) {
@@ -130,7 +143,39 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
                         }
-
+                        val colorBarWidth: Dp = with(LocalDensity.current) {
+                            (max(maxHeight, maxWidth).toPx() - totalSize) / 4f
+                        }.toInt().dp
+                        val mappingForce: (Float) -> Dp = { f ->
+                            // range the force values between [0, .5]
+                            (totalSize * (f / 2f)).toInt().dp
+                        }
+                        BoxWithConstraints(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .width(colorBarWidth)
+                                .padding(24.dp)
+                                .align(Alignment.CenterEnd)
+                                .clip(RoundedCornerShape(24.dp))
+                                .background(Color.Gray)
+                        ) {
+                            if (stylusState.isPressing) {
+                                BoxWithConstraints(
+                                    modifier = Modifier
+                                        .height(mappingForce(stylusState.points.last().f))
+                                        .fillMaxWidth()
+                                        .align(Alignment.BottomEnd)
+                                        .background(red2blue(stylusState.points.last().f))
+                                ) {
+                                    Text(
+                                        "${stylusState.points.last().f}",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = Color.White,
+                                        modifier = Modifier.align(Alignment.TopCenter)
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }

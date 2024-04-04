@@ -24,6 +24,8 @@ class StylusViewModel : ViewModel() {
     private val removeBrush = DataPoint(-100f, -100f)
     private var t0 = 0L
 
+//    private val damping = .9f
+
     private val _isLoading = MutableStateFlow(true)
     val isLoading = _isLoading.asStateFlow()
 
@@ -55,12 +57,15 @@ class StylusViewModel : ViewModel() {
             }
 
             MotionEvent.ACTION_MOVE -> {
+                val dt = System.currentTimeMillis() - t0
+//                val previousForce = tmpPoints.last().f
+                val currentForce = event.pressure
                 tmpPoints.add(
                     ForcePoint(
                         event.x,
                         event.y,
-                        event.pressure,
-                        System.currentTimeMillis() - t0
+                        currentForce,
+                        dt
                     )
                 )
             }
@@ -72,7 +77,8 @@ class StylusViewModel : ViewModel() {
 
         requestRendering(
             StylusState(
-                points = buildPoints()
+                points = buildPoints(),
+                isPressing = event.actionMasked == MotionEvent.ACTION_MOVE
             )
         )
 
