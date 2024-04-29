@@ -12,9 +12,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.jvm.internal.Ref.FloatRef
 import kotlin.math.pow
 
 class StylusViewModel : ViewModel() {
+    private var totalSize: Float = 1f
     private var dataPoints = HistoryState(mutableListOf<ForcePoint>())
     private var tmpPoints = mutableListOf<ForcePoint>()
 
@@ -191,4 +193,30 @@ class StylusViewModel : ViewModel() {
     fun switchErasingModes() {
         requestRendering(stylusState.value.copy(erasingMode = !stylusState.value.erasingMode))
     }
+
+    fun exportingPointsAsCSV(): String {
+        return "t,pos_x,pos_y,force\n" + dataPoints.current.map {
+            ForcePoint(
+                it.x / totalSize,
+                it.y / totalSize,
+                it.f,
+                it.t
+            )
+        }.joinToString("\n") {
+            "${it.t},${it.x},${it.y},${it.f}"
+        }
+    }
+
+    fun importingPointsFromCSV(points: List<List<Float>>) {
+        clearPoints()
+        dataPoints.add(points.map { point -> ForcePoint(
+            t = point[0].toLong(),
+            x = (point[1] + 1) / 2f * totalSize,
+            y = totalSize - (point[2] + 1) / 2f * totalSize,
+            f = point[3]
+        )}.toMutableList())
+        updatePoints()
+    }
+
+    fun updateTotalSize(ts: Float) { totalSize = ts }
 }

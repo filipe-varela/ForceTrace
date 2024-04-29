@@ -1,7 +1,10 @@
 package com.vilp.forcetrace
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.util.Log
+import android.webkit.MimeTypeMap
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -37,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.max
 import androidx.compose.ui.unit.min
 import androidx.core.content.FileProvider
+import androidx.core.net.toFile
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -57,8 +61,13 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import java.io.File
+import java.io.FileNotFoundException
+import java.io.FileOutputStream
+import java.io.FileReader
 import java.io.FileWriter
 import java.io.IOException
+import java.lang.NullPointerException
+import java.lang.StringBuilder
 
 class MainActivity : ComponentActivity() {
     private var stylusState: StylusState by mutableStateOf(StylusState())
@@ -67,6 +76,9 @@ class MainActivity : ComponentActivity() {
         ActivityResultContracts.StartActivityForResult()
     ) { exportingCallback(it) }
     private var exportedFile: File? = null
+    private val importFileRegister = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { importingCallback(it) }
 
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -118,6 +130,7 @@ class MainActivity : ComponentActivity() {
                         }
                         val totalSize: Float =
                             with(LocalDensity.current) { min(maxHeight, maxWidth).toPx() }
+                        viewModel.updateTotalSize(totalSize)
                         var fname: String by remember { mutableStateOf("default") }
                         BottomBar(horizontalAlignment = Alignment.BottomCenter) {
                             OptionsButton(id = R.drawable.baseline_design_services_24) {
@@ -134,31 +147,31 @@ class MainActivity : ComponentActivity() {
                             }
                             OptionsButton(id = R.drawable.baseline_download_24) {
                                 if (stylusState.points.isNotEmpty()) {
-                                    val pointsAsCSV: String = buildCSVContent(
-                                        stylusState.points,
-                                        totalSize
-                                    )
+                                    val pointsAsCSV: String = viewModel.exportingPointsAsCSV()
                                     exportCSV(
                                         fname,
                                         pointsAsCSV
                                     ).resolve {
                                         when (it) {
-                                            is ForceResult.Failure -> Toast.makeText(
-                                                this@MainActivity,
-                                                "Failed due ${it.error}",
-                                                Toast.LENGTH_LONG
-                                            ).show()
+                                            is ForceResult.Failure -> makeToast("Failed due ${it.error}")
 
                                             is ForceResult.Success -> shareFile(it.data)
                                         }
                                     }
                                 } else {
-                                    Toast.makeText(
-                                        this@MainActivity,
-                                        "There is no points to export",
-                                        Toast.LENGTH_LONG
-                                    ).show()
+                                    makeToast("There is no points to export")
                                 }
+                            }
+                            OptionsButton(id = R.drawable.baseline_upload_24) {
+                                importFileRegister.launch(
+                                    Intent.createChooser(
+                                        Intent().apply {
+                                            type = "text/csv"
+                                            action = Intent.ACTION_GET_CONTENT
+                                        },
+                                        "Choose a file"
+                                    )
+                                )
                             }
                         }
                         val colorBarWidth: Dp = with(LocalDensity.current) {
@@ -214,19 +227,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun buildCSVContent(points: List<ForcePoint>, totalSize: Float): String {
-        return "t,pos_x,pos_y,force\n" + points.map {
-            ForcePoint(
-                it.x / totalSize,
-                it.y / totalSize,
-                it.f,
-                it.t
-            )
-        }.joinToString("\n") {
-            "${it.t},${it.x},${it.y},${it.f}"
-        }
-    }
-
     private fun exportCSV(filename: String, content: String): ForceResult<File> {
         val cacheDir = applicationContext.cacheDir
         val csvFile = File(cacheDir, "$filename.csv")
@@ -258,14 +258,12 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun exportingCallback(activityResult: ActivityResult) {
-        Toast.makeText(
-            this@MainActivity,
+        makeToast(
             if (activityResult.resultCode == RESULT_OK)
                 "Exported!"
             else
-                "Failed to export!",
-            Toast.LENGTH_LONG
-        ).show()
+                "Failed to export!"
+        )
         exportedFile.let {
             if (it != null && !it.delete()) Toast.makeText(
                 this@MainActivity,
@@ -274,6 +272,93 @@ class MainActivity : ComponentActivity() {
             ).show()
         }
     }
+
+    private fun importCSV(fileUri: Uri): ForceResult<String> {
+        return try {
+            val instream = contentResolver.openInputStream(fileUri)!!
+            val content = instream.reader().readText()
+            instream.close()
+            ForceResult.Success(content)
+        } catch (e: IOException) {
+            ForceResult.Failure(
+                "There was an error importing file.\n?:${e.message ?: "No error message"}"
+            )
+        } catch (e: FileNotFoundException) {
+            ForceResult.Failure(
+                "The file was not found.\n${e.message ?: "No error message"}"
+            )
+        }
+    }
+
+    private fun importingCallback(activityResult: ActivityResult) {
+        makeToast(
+            if (activityResult.resultCode == RESULT_OK)
+                "Imported!"
+            else
+                "Failed to import!"
+        )
+        activityResult.data.let { intent ->
+            if (intent == null || intent.data == null) makeToast("The file is null!")
+            else {
+                importCSV(intent.data!!).resolve { result ->
+                    when(result) {
+                        is ForceResult.Failure -> makeToast("It was a failure! ${result.error}")
+                        is ForceResult.Success -> {
+                            makeToast("Processing imported data...")
+                            val data = parseData(result.data)
+                            if (data.isEmpty()) makeToast("There is no data to import")
+                            else viewModel.importingPointsFromCSV(data)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun parseData(resultData: String): List<List<Float>> {
+        val data: List<List<Float?>> = resultData
+            .split("\n")
+            .subListWithSize(1, 1)
+            .map { line ->
+                line.split(",")
+                    .subList(0, 5)
+                    .map { entry ->
+                        entry.toFloatOrNull()
+                    }
+            }
+
+        if (data.containsNull()) makeToast("There were entries that couldn't be converted")
+
+        val notNullData = mutableListOf<List<Float>>()
+        for (line in data)
+            if (!line.contains(null))
+                notNullData.add(line.filterNotNull())
+
+        return notNullData
+
+    }
+
+    private fun makeToast(msg: String) {
+        Toast.makeText(
+            this@MainActivity,
+            msg,
+            Toast.LENGTH_LONG
+        ).show()
+    }
 }
 
+fun <T> List<List<T>>.containsNull(): Boolean {
+    for (line in this) {
+        for (entry in line) {
+            if (entry == null) {
+                return true
+            }
+        }
+    }
+    return false
+}
+
+fun List<String>.subListWithSize(fromIdx: Int, popN: Int = 0): List<String> {
+    return subList(fromIdx, size - popN)
+}
 
